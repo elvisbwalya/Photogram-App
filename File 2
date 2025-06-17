@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="#80000000"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Overlap:"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"/>
+
+            <TextView
+                android:id="@+id/tvOverlapPercentage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="80%"
+                android:textColor="#4CAF50"
+                android:textSize="16sp"/>
+
+            <SeekBar
+                android:id="@+id/seekBarOverlap"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:max="95"
+                android:min="60"
+                android:progress="80"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Interval:"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"/>
+
+            <TextView
+                android:id="@+id/tvInterval"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2000 ms"
+                android:textColor="#2196F3"
+                android:textSize="16sp"/>
+
+            <SeekBar
+                android:id="@+id/seekBarInterval"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:max="5000"
+                android:min="500"
+                android:progress="2000"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnCapture"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="START CAPTURE"
+            android:backgroundTint="#4CAF50"
+            android:textColor="#FFFFFF"/>
+
+        <TextView
+            android:id="@+id/tvCounter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="0 photos captured"
+            android:textAlignment="center"
+            android:textColor="#FFFFFF"/>
+    </LinearLayout>
+</RelativeLayout>
