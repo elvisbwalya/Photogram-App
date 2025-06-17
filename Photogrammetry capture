@@ -1,0 +1,192 @@
+package com.example.photogrammetrycapture
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.util.Size
+import android.widget.Button
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
+import com.guolindev.permissionx.PermissionX
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var previewView: PreviewView
+    private lateinit var btnCapture: Button
+    private lateinit var tvCounter: TextView
+    private lateinit var tvOverlapPercentage: TextView
+    private lateinit var tvInterval: TextView
+    private lateinit var seekBarOverlap: SeekBar
+    private lateinit var seekBarInterval: SeekBar
+
+    private var imageCapture: ImageCapture? = null
+    private var cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    private var captureActive = false
+    private var captureCount = 0
+    private var captureInterval = 2000L
+    private var overlapPercentage = 80
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val captureRunnable = object : Runnable {
+        override fun run() {
+            if (captureActive) {
+                takePhoto()
+                handler.postDelayed(this, captureInterval)
+            }
+        }
+    }
+
+    @SuppressLint("MissingInflatedId")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        // Initialize UI components
+        previewView = findViewById(R.id.previewView)
+        btnCapture = findViewById(R.id.btnCapture)
+        tvCounter = findViewById(R.id.tvCounter)
+        tvOverlapPercentage = findViewById(R.id.tvOverlapPercentage)
+        tvInterval = findViewById(R.id.tvInterval)
+        seekBarOverlap = findViewById(R.id.seekBarOverlap)
+        seekBarInterval = findViewById(R.id.seekBarInterval)
+
+        // Set up seek bars
+        setupSeekBars()
+
+        // Request permissions
+        requestPermissions()
+
+        // Set capture button click listener
+        btnCapture.setOnClickListener {
+            if (!captureActive) {
+                startCaptureSequence()
+            } else {
+                stopCaptureSequence()
+            }
+        }
+    }
+
+    private fun setupSeekBars() {
+        seekBarOverlap.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                overlapPercentage = progress
+                tvOverlapPercentage.text = "$overlapPercentage%"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        seekBarInterval.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                captureInterval = progress.toLong()
+                tvInterval.text = "$captureInterval ms"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+    }
+
+    private fun requestPermissions() {
+        PermissionX.init(this)
+            .permissions(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            .request { allGranted, _, _ ->
+                if (allGranted) startCamera() 
+                else Toast.makeText(this, "Permissions required", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
+            val cameraProvider = cameraProviderFuture.get()
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+            
+            imageCapture = ImageCapture.Builder()
+                .setTargetResolution(Size(3264, 2448)) // 8MP
+                .build()
+
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    this,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    imageCapture
+                )
+            } catch (e: Exception) {
+                Log.e("Camera", "Use case binding failed", e)
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun startCaptureSequence() {
+        captureActive = true
+        captureCount = 0
+        btnCapture.text = "STOP CAPTURE"
+        seekBarOverlap.isEnabled = false
+        seekBarInterval.isEnabled = false
+        handler.post(captureRunnable)
+    }
+
+    private fun stopCaptureSequence() {
+        captureActive = false
+        handler.removeCallbacks(captureRunnable)
+        btnCapture.text = "START CAPTURE"
+        seekBarOverlap.isEnabled = true
+        seekBarInterval.isEnabled = true
+        Toast.makeText(this, "Captured $captureCount photos", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun takePhoto() {
+        val imageCapture = imageCapture ?: return
+        val photoFile = createImageFile()
+        
+        imageCapture.takePicture(
+            ImageCapture.OutputFileOptions.Builder(photoFile).build(),
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onError(exc: ImageCaptureException) {
+                    Log.e("Camera", "Photo capture failed", exc)
+                }
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    captureCount++
+                    tvCounter.text = "$captureCount photos captured"
+                }
+            }
+        )
+    }
+
+    private fun createImageFile(): File {
+        val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)!!
+        if (!storageDir.exists()) storageDir.mkdirs()
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
+        return File(storageDir, "PG_${timestamp}.jpg")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
+    }
+}
